@@ -1,270 +1,126 @@
-// Initialize objects
-const socket = io();
-let map, marker;
-let charts = {};
-let gauges = {};
+// Initialize JustGage for temperature
+const gauge = new JustGage({
+    id: "temp-gauge",
+    value: 0,
+    min: -20,
+    max: 50,
+    title: "Temperature (°C)",
+    label: "°C",
+    decimals: 2,
+    gaugeWidthScale: 0.6,
+    customSectors: {
+        ranges: [
+            { from: -20, to: 0, color: "#3498db" },
+            { from: 0, to: 30, color: "#2ecc71" },
+            { from: 30, to: 50, color: "#e74c3c" }
+        ]
+    },
+    counter: true
+});
 
-// DOM elements
-const elements = {
-  connection: document.getElementById('connection-status'),
-  values: {
-    heartRate: document.getElementById('heartRateValue'),
-    spo2: document.getElementById('spo2Value'),
-    temperature: document.getElementById('temperatureValue'),
-    acceleration: document.getElementById('accelerationValue'),
-    latitude: document.getElementById('latitudeValue'),
-    longitude: document.getElementById('longitudeValue'),
-    satellites: document.getElementById('satellitesValue')
-  },
-  fall: {
-    alert: document.getElementById('fallAlert'),
-    status: document.getElementById('fallStatus')
-  },
-  eventLog: document.getElementById('eventLog')
+// Initialize Leaflet map
+let map, marker;
+function initMap(lat, lng, gpsValid) {
+    if (map) {
+        map.remove(); // Remove existing map instance
+    }
+    map = L.map('map').setView([gpsValid ? lat : 0, gpsValid ? lng : 0], gpsValid ? 13 : 1);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+    if (gpsValid) {
+        marker = L.marker([lat, lng]).addTo(map)
+            .bindPopup('Current Location')
+            .openPopup();
+    }
+    console.log('Map initialized with:', { lat, lng, gpsValid });
+}
+
+// Initialize map with default coordinates (0, 0)
+initMap(0, 0, false);
+
+// WebSocket connection
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const ws = new WebSocket(`${protocol}//${window.location.host}`);
+
+ws.onopen = () => {
+    console.log('WebSocket connected');
 };
 
-// Connection handling
-socket.on('connect', () => {
-  elements.connection.textContent = 'Connected';
-  elements.connection.className = 'alert alert-success';
-});
-
-socket.on('disconnect', () => {
-  elements.connection.textContent = 'Disconnected';
-  elements.connection.className = 'alert alert-danger';
-});
-
-// Initialize dashboard
-document.addEventListener('DOMContentLoaded', () => {
-  setupGauges();
-  setupCharts();
-  setupMap();
-  
-  // Get initial data
-  fetch('/api/latest').then(res => res.json()).then(updateDashboard);
-  fetch('/api/history').then(res => res.json()).then(updateCharts);
-  
-  // Listen for updates
-  socket.on('sensorData', data => {
-    updateDashboard(data);
-    logEvent(data);
-  });
-  
-  socket.on('historyData', updateCharts);
-});
-
-// Setup gauge meters
-function setupGauges() {
-  const gaugeConfig = {
-    heartRate: {
-      min: 40, max: 180, value: 70,
-      zones: [
-        {color: "#30B32D", min: 40, max: 60},
-        {color: "#6DD400", min: 60, max: 100},
-        {color: "#FFDD00", min: 100, max: 140},
-        {color: "#FF6D00", min: 140, max: 160},
-        {color: "#FF0000", min: 160, max: 180}
-      ]
-    },
-    spo2: {
-      min: 70, max: 100, value: 95,
-      zones: [
-        {color: "#FF0000", min: 70, max: 85},
-        {color: "#FF6D00", min: 85, max: 90},
-        {color: "#FFDD00", min: 90, max: 95},
-        {color: "#30B32D", min: 95, max: 100}
-      ]
-    },
-    temperature: {
-      min: 35, max: 42, value: 37,
-      zones: [
-        {color: "#FFDD00", min: 35, max: 36.5},
-        {color: "#30B32D", min: 36.5, max: 37.5},
-        {color: "#FFDD00", min: 37.5, max: 38.5},
-        {color: "#FF6D00", min: 38.5, max: 39.5},
-        {color: "#FF0000", min: 39.5, max: 42}
-      ]
-    },
-    acceleration: {
-      min: 0, max: 30, value: 9.8,
-      zones: [
-        {color: "#30B32D", min: 0, max: 10},
-        {color: "#FFDD00", min: 10, max: 20},
-        {color: "#FF6D00", min: 20, max: 25},
-        {color: "#FF0000", min: 25, max: 30}
-      ]
-    }
-  };
-
-  Object.entries(gaugeConfig).forEach(([key, config]) => {
-    const gauge = new Gauge(document.getElementById(`${key}Gauge`));
-    gauge.setOptions({
-      angle: 0,
-      lineWidth: 0.2,
-      radiusScale: 0.9,
-      pointer: {
-        length: 0.6,
-        strokeWidth: 0.035,
-        color: '#000000'
-      },
-      limitMax: false,
-      limitMin: false,
-      highDpiSupport: true,
-      staticZones: config.zones.map(zone => ({
-        strokeStyle: zone.color,
-        min: zone.min,
-        max: zone.max
-      }))
-    });
-    gauge.maxValue = config.max;
-    gauge.setMinValue(config.min);
-    gauge.animationSpeed = 32;
-    gauge.set(config.value);
-    gauges[key] = gauge;
-  });
-}
-
-// Setup charts
-function setupCharts() {
-  const chartConfig = {
-    heartRate: { color: 'rgb(255, 99, 132)', min: 40, max: 180, label: 'Heart Rate (BPM)' },
-    spo2: { color: 'rgb(54, 162, 235)', min: 85, max: 100, label: 'Blood Oxygen (%)' },
-    temperature: { color: 'rgb(255, 159, 64)', min: 35, max: 42, label: 'Temperature (°C)' },
-    acceleration: { color: 'rgb(75, 192, 192)', min: 0, max: 30, label: 'Acceleration (m/s²)' }
-  };
-
-  Object.entries(chartConfig).forEach(([key, config]) => {
-    const ctx = document.getElementById(`${key}Chart`).getContext('2d');
-    charts[key] = new Chart(ctx, {
-      type: 'line',
-      data: {
-        datasets: [{
-          label: config.label,
-          data: [],
-          borderColor: config.color,
-          backgroundColor: config.color.replace('rgb', 'rgba').replace(')', ', 0.2)'),
-          borderWidth: 2,
-          tension: 0.2,
-          pointRadius: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: {
-            type: 'time',
-            time: {
-              unit: 'second',
-              displayFormats: {
-                second: 'HH:mm:ss'
-              }
-            }
-          },
-          y: {
-            min: config.min,
-            max: config.max,
-            title: {
-              display: true,
-              text: config.label.split(' ').pop()
-            }
-          }
-        },
-        animation: { duration: 0 }
-      }
-    });
-  });
-}
-
-// Setup map
-function setupMap() {
-  map = L.map('map').setView([0, 0], 2);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>'
-  }).addTo(map);
-  marker = L.marker([0, 0]).addTo(map);
-}
-
-// Update dashboard with new data
-function updateDashboard(data) {
-  // Update gauges and values
-  ['heartRate', 'spo2', 'temperature', 'acceleration'].forEach(key => {
-    if (data[key] !== null && data[key] !== undefined) {
-      elements.values[key].textContent = `${data[key].toFixed(1)} ${key === 'heartRate' ? 'BPM' : key === 'spo2' ? '%' : key === 'temperature' ? '°C' : 'm/s²'}`;
-      gauges[key].set(data[key]);
+ws.onmessage = async (event) => {
+    let message;
+    if (event.data instanceof Blob) {
+        message = await event.data.text();
     } else {
-      elements.values[key].textContent = 'N/A';
+        message = event.data;
     }
-  });
-  
-  // Update fall status
-  if (data.fallDetected) {
-    elements.fall.alert.className = 'alert mb-0 alert-danger';
-    elements.fall.status.textContent = 'FALL DETECTED!';
-  } else {
-    elements.fall.alert.className = 'alert mb-0 alert-success';
-    elements.fall.status.textContent = 'Normal (No Falls)';
-  }
-  
-  // Update GPS values
-  elements.values.latitude.value = data.latitude !== null ? data.latitude.toFixed(6) : 'N/A';
-  elements.values.longitude.value = data.longitude !== null ? data.longitude.toFixed(6) : 'N/A';
-  elements.values.satellites.value = data.satellites !== null ? data.satellites : 'N/A';
-  
-  // Update map if coordinates are valid
-  if (data.latitude !== null && data.longitude !== null) {
-    const newPosition = [data.latitude, data.longitude];
-    marker.setLatLng(newPosition);
-    map.setView(newPosition, 15);
-    marker.bindPopup(`Lat: ${data.latitude.toFixed(6)}<br>Long: ${data.longitude.toFixed(6)}`);
-  }
-}
 
-// Update charts with history data
-function updateCharts(data) {
-  Object.entries(data).forEach(([key, entries]) => {
-    if (charts[key]) {
-      charts[key].data.datasets[0].data = entries.map(entry => ({
-        x: new Date(entry.timestamp),
-        y: entry.value
-      }));
-      charts[key].update();
-    }
-  });
-}
+    try {
+        const data = JSON.parse(message);
+        console.log('Received data:', data);
 
-// Log events to the event table
-function logEvent(data) {
-  const eventLog = elements.eventLog;
-  const now = new Date();
-  const timeString = now.toLocaleTimeString();
-  
-  // Create log entry
-  let event = null;
-  
-  if (data.fallDetected) {
-    event = { time: timeString, type: 'Fall Detected', details: `Acceleration: ${data.acceleration.toFixed(2)} m/s²` };
-  } else if (data.heartRate !== null && (data.heartRate < 50 || data.heartRate > 120)) {
-    event = { time: timeString, type: 'Abnormal Heart Rate', details: `${data.heartRate.toFixed(1)} BPM` };
-  } else if (data.spo2 !== null && data.spo2 < 90) {
-    event = { time: timeString, type: 'Low Blood Oxygen', details: `${data.spo2.toFixed(1)}%` };
-  } else if (data.temperature !== null && (data.temperature < 36 || data.temperature > 38)) {
-    event = { time: timeString, type: 'Abnormal Temperature', details: `${data.temperature.toFixed(1)}°C` };
-  }
-  
-  if (event) {
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td>${event.time}</td>
-      <td>${event.type}</td>
-      <td>${event.details}</td>
-    `;
-    
-    eventLog.prepend(row);
-    
-    // Keep only last 10 events
-    if (eventLog.children.length > 10) {
-      eventLog.removeChild(eventLog.lastChild);
+        // Update temperature gauge
+        if (data.temperature !== undefined) {
+            gauge.refresh(data.temperature);
+        }
+
+        // Update heart rate
+        if (data.heartRate !== undefined) {
+            document.getElementById('heart-rate').innerText = data.heartRate.toFixed(0) + ' BPM';
+        }
+
+        // Update SpO2
+        if (data.spo2 !== undefined) {
+            document.getElementById('spo2').innerText = data.spo2.toFixed(0) + ' %';
+        }
+
+        // Update acceleration (calculate magnitude if not provided)
+        if (data.fallDetected !== undefined) {
+            // Since acceleration isn't directly sent, use fall detection to simulate
+            const accMag = data.fallDetected ? 30 : 9.8; // Example values
+            document.getElementById('acc').innerText = accMag.toFixed(2) + ' m/s²';
+        }
+
+        // Update fall status
+        if (data.fallDetected !== undefined) {
+            document.getElementById('fall').innerText = data.fallDetected ? 'FALL DETECTED' : 'Normal';
+            document.getElementById('fall').parentElement.className = 'reading' + (data.fallDetected ? ' alert' : '');
+        }
+
+        // Update GPS data
+        if (data.latitude !== undefined && data.longitude !== undefined) {
+            const gpsValid = true; // Since latitude and longitude are present
+            document.getElementById('lat').innerText = data.latitude.toFixed(6);
+            document.getElementById('lng').innerText = data.longitude.toFixed(6);
+            document.getElementById('gps').innerText = gpsValid ? 'Valid' : 'Waiting for fix';
+            initMap(data.latitude, data.longitude, gpsValid);
+        } else {
+            document.getElementById('lat').innerText = '0';
+            document.getElementById('lng').innerText = '0';
+            document.getElementById('gps').innerText = 'Waiting for fix';
+            console.log('No valid GPS data received');
+        }
+    } catch (error) {
+        console.error('Failed to parse JSON:', error, 'Raw message:', message);
     }
-  }
+};
+
+ws.onclose = () => {
+    console.log('WebSocket disconnected');
+    document.getElementById('fall').innerText = 'WebSocket Disconnected';
+    document.getElementById('fall').parentElement.className = 'reading alert';
+};
+
+ws.onerror = (error) => {
+    console.error('WebSocket error:', error);
+    document.getElementById('fall').innerText = 'WebSocket Error';
+    document.getElementById('fall').parentElement.className = 'reading alert';
+};
+
+// Function to restart the map (called by the button)
+function restartMap() {
+    const lat = parseFloat(document.getElementById('lat').innerText);
+    const lng = parseFloat(document.getElementById('lng').innerText);
+    const gpsValid = document.getElementById('gps').innerText === 'Valid';
+    initMap(lat, lng, gpsValid);
 }

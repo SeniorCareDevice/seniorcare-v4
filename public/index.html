@@ -2,168 +2,53 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Health Monitor</title>
-    <!-- CSS Libraries -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
-    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Elderly Health Monitor</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="row py-3">
-            <div class="col-12">
-                <h1 class="text-center">ESP32 Health Monitor</h1>
-                <p class="text-center text-muted">Real-time sensor data visualization</p>
-                <div id="connection-status" class="alert alert-warning">Connecting to server...</div>
-            </div>
+    <div class="container">
+        <h1>Elderly Health Monitor</h1>
+        <div class="reading" style="justify-content: center;">
+            <div id="temp-gauge"></div>
         </div>
-
-        <div class="row">
-            <!-- Vital Signs Section -->
-            <div class="col-md-6">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h4><i class="fas fa-heartbeat"></i> Vital Signs</h4>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <!-- Heart Rate Gauge -->
-                            <div class="col-md-6">
-                                <div class="gauge-container">
-                                    <canvas id="heartRateGauge"></canvas>
-                                    <div class="gauge-value" id="heartRateValue">-- BPM</div>
-                                    <div class="gauge-label">Heart Rate</div>
-                                </div>
-                            </div>
-                            <!-- SpO2 Gauge -->
-                            <div class="col-md-6">
-                                <div class="gauge-container">
-                                    <canvas id="spo2Gauge"></canvas>
-                                    <div class="gauge-value" id="spo2Value">-- %</div>
-                                    <div class="gauge-label">Blood Oxygen</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row mt-4">
-                            <!-- Temperature -->
-                            <div class="col-md-6">
-                                <div class="gauge-container">
-                                    <canvas id="temperatureGauge"></canvas>
-                                    <div class="gauge-value" id="temperatureValue">-- °C</div>
-                                    <div class="gauge-label">Body Temperature</div>
-                                </div>
-                            </div>
-                            <!-- Fall Detection -->
-                            <div class="col-md-6">
-                                <div class="alert mb-0" id="fallAlert">
-                                    <h4 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Fall Status: <span id="fallStatus">Monitoring</span></h4>
-                                </div>
-                                <div class="gauge-container mt-3">
-                                    <canvas id="accelerationGauge"></canvas>
-                                    <div class="gauge-value" id="accelerationValue">-- m/s²</div>
-                                    <div class="gauge-label">Acceleration</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Location Section -->
-            <div class="col-md-6">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h4><i class="fas fa-map-marker-alt"></i> GPS Location</h4>
-                    </div>
-                    <div class="card-body">
-                        <div id="map" style="height: 400px;"></div>
-                        <div class="row mt-3">
-                            <div class="col-md-6">
-                                <div class="input-group">
-                                    <span class="input-group-text">Latitude</span>
-                                    <input type="text" class="form-control" id="latitudeValue" readonly>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="input-group">
-                                    <span class="input-group-text">Longitude</span>
-                                    <input type="text" class="form-control" id="longitudeValue" readonly>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-2">
-                            <div class="input-group">
-                                <span class="input-group-text">Satellites</span>
-                                <input type="text" class="form-control" id="satellitesValue" readonly>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="reading">
+            <label>Heart Rate:</label>
+            <span id="heart-rate">0 BPM</span>
         </div>
-
-        <!-- Charts Section -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h4><i class="fas fa-chart-line"></i> Historical Data</h4>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6 mb-4">
-                                <canvas id="heartRateChart"></canvas>
-                            </div>
-                            <div class="col-md-6 mb-4">
-                                <canvas id="spo2Chart"></canvas>
-                            </div>
-                            <div class="col-md-6 mb-4">
-                                <canvas id="temperatureChart"></canvas>
-                            </div>
-                            <div class="col-md-6 mb-4">
-                                <canvas id="accelerationChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="reading">
+            <label>SpO2:</label>
+            <span id="spo2">0 %</span>
         </div>
-
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h4><i class="fas fa-history"></i> Recent Events</h4>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Time</th>
-                                        <th>Event</th>
-                                        <th>Details</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="eventLog">
-                                    <!-- Events will be populated here -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="reading">
+            <label>Acceleration:</label>
+            <span id="acc">0 m/s²</span>
+        </div>
+        <div class="reading">
+            <label>Fall Status:</label>
+            <span id="fall">Normal</span>
+        </div>
+        <div class="reading">
+            <label>Latitude:</label>
+            <span id="lat">0</span>
+        </div>
+        <div class="reading">
+            <label>Longitude:</label>
+            <span id="lng">0</span>
+        </div>
+        <div class="reading">
+            <label>GPS Status:</label>
+            <span id="gps">Waiting for fix</span>
+        </div>
+        <div id="map"></div>
+        <div class="button-container">
+            <button onclick="restartMap()">Restart Map</button>
         </div>
     </div>
-
-    <!-- JavaScript Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.3.0/chart.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gauge.js/1.3.7/gauge.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.3.0/raphael.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/justgage/1.6.1/justgage.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
