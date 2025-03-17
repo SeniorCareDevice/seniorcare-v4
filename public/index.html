@@ -2,49 +2,61 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Elderly Health Monitor</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>Elderly Health Monitor</h1>
-        <div class="reading" style="justify-content: center;">
-            <div id="temp-gauge"></div>
-        </div>
-        <div class="reading">
-            <label>Heart Rate:</label>
-            <span id="heart-rate">0 BPM</span>
-        </div>
-        <div class="reading">
-            <label>SpO2:</label>
-            <span id="spo2">0 %</span>
-        </div>
-        <div class="reading">
-            <label>Acceleration:</label>
-            <span id="acc">0 m/s²</span>
-        </div>
-        <div class="reading">
-            <label>Fall Status:</label>
-            <span id="fall">Normal</span>
-        </div>
-        <div class="reading">
-            <label>Latitude:</label>
-            <span id="lat">0</span>
-        </div>
-        <div class="reading">
-            <label>Longitude:</label>
-            <span id="lng">0</span>
-        </div>
-        <div class="reading">
-            <label>GPS Status:</label>
-            <span id="gps">Waiting for fix</span>
-        </div>
-        <div id="map"></div>
-        <div class="button-container">
-            <button onclick="restartMap()">Restart Map</button>
-        </div>
+        <header class="header">
+            <h1>Elderly Health Monitor</h1>
+        </header>
+        <main class="dashboard">
+            <div class="reading-card">
+                <div class="reading" style="justify-content: center;">
+                    <div id="temp-gauge"></div>
+                </div>
+            </div>
+            <div class="reading-card">
+                <div class="reading">
+                    <label>Heart Rate:</label>
+                    <span id="heart-rate">0 BPM</span>
+                </div>
+                <div class="reading">
+                    <label>SpO2:</label>
+                    <span id="spo2">0 %</span>
+                </div>
+                <div class="reading">
+                    <label>Acceleration:</label>
+                    <span id="acc">0 m/s²</span>
+                </div>
+                <div class="reading">
+                    <label>Fall Status:</label>
+                    <span id="fall">Normal</span>
+                </div>
+                <div class="reading">
+                    <label>Latitude:</label>
+                    <span id="lat">0</span>
+                </div>
+                <div class="reading">
+                    <label>Longitude:</label>
+                    <span id="lng">0</span>
+                </div>
+                <div class="reading">
+                    <label>GPS Status:</label>
+                    <span id="gps">Waiting for fix</span>
+                </div>
+            </div>
+            <div class="map-card">
+                <h2>Location</h2>
+                <div id="map"></div>
+                <div class="button-container">
+                    <button onclick="restartMap()">Restart Map</button>
+                </div>
+            </div>
+        </main>
     </div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.3.0/raphael.min.js"></script>
